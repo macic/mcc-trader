@@ -87,17 +87,19 @@ def plotly_candles(df, name='candles', indicators=None):
 
 
 from ta import bollinger_hband_indicator
-
+"""
 df = read_csv()
 save_to_db(pair_name, time_range, df)
 print(df.tail(5))
-
 del df
+"""
+
+
 start_date_ts = datetime.datetime.strptime(start_date, "%Y-%m-%d").timestamp()
 end_date_ts = datetime.datetime.strptime(end_date, "%Y-%m-%d").timestamp()
 df = get_data_from_timerange(pair_name, time_range, start_date_ts, end_date_ts)
 print(df.tail(5))
-exit()
+print(pair_name, time_range)
 
 rolling_mean = df[field].rolling(rolling_window).mean()
 rolling_std = df[field].rolling(rolling_window).std()
@@ -120,47 +122,47 @@ def close_previous_open_new_trade(type_, price):
     open_trade_type = type_
     open_trade_price = price
     open_trade_volume = money / price
-    print("close previous open new")
-    print("type", open_trade_type)
-    print("volume", open_trade_volume)
-    print("price", price)
-    print("money", money)
-    print("------------------------")
+    # print("close previous open new")
+    # print("type", open_trade_type)
+    # print("volume", open_trade_volume)
+    # print("price", price)
+    # print("money", money)
+    # print("------------------------")
 
-
-trades_list = []
-previous = None
-for row in range(len(df)):
-
-    if (df[field].iloc[row] > df['bollinger_high'].iloc[row]) and (
-            df[field].iloc[row - 1] < df['bollinger_high'].iloc[row - 1]) \
-            and previous != 'sell':
-        df['position'].iloc[row] = -1
-        previous = 'sell'
-        # check if position was different before
-        if df['position'].iloc[row - 1] != -1:
-            trades_list.append({'sell': {field: df[field].iloc[row], 'ts': df.index[0]}})
-            close_previous_open_new_trade('sell', df[field].iloc[row])
-
-    if (df[field].iloc[row] < df['bollinger_low'].iloc[row]) and (
-            df[field].iloc[row - 1] > df['bollinger_low'].iloc[row - 1]) \
-            and previous != 'buy':
-        df['position'].iloc[row] = 1
-        previous = 'buy'
-        if df['position'].iloc[row - 1] != 1:
-            trades_list.append({'buy': {field: df[field].iloc[row], 'ts': df.index[0]}})
-            close_previous_open_new_trade('buy', df[field].iloc[row])
-
-df['position'].fillna(method='ffill', inplace=True)
-
-# Calculate the daily market return and multiply that by the position to determine strategy returns
-df['timeframe_return'] = np.log(df[field] / df[field].shift(1))
-df['strategy_return'] = df['timeframe_return'] * df['position']
-
-# count total the strategy returns
-total = df['strategy_return'].cumsum()
-print("last total value", total.iloc[-1:])
-
-print(df.tail())
+#
+# trades_list = []
+# previous = None
+# for row in range(len(df)):
+#
+#     if (df[field].iloc[row] > df['bollinger_high'].iloc[row]) and (
+#             df[field].iloc[row - 1] < df['bollinger_high'].iloc[row - 1]) \
+#             and previous != 'sell':
+#         df['position'].iloc[row] = -1
+#         previous = 'sell'
+#         # check if position was different before
+#         if df['position'].iloc[row - 1] != -1:
+#             trades_list.append({'sell': {field: df[field].iloc[row], 'ts': df.index[0]}})
+#             close_previous_open_new_trade('sell', df[field].iloc[row])
+#
+#     if (df[field].iloc[row] < df['bollinger_low'].iloc[row]) and (
+#             df[field].iloc[row - 1] > df['bollinger_low'].iloc[row - 1]) \
+#             and previous != 'buy':
+#         df['position'].iloc[row] = 1
+#         previous = 'buy'
+#         if df['position'].iloc[row - 1] != 1:
+#             trades_list.append({'buy': {field: df[field].iloc[row], 'ts': df.index[0]}})
+#             close_previous_open_new_trade('buy', df[field].iloc[row])
+#
+# df['position'].fillna(method='ffill', inplace=True)
+#
+# # Calculate the daily market return and multiply that by the position to determine strategy returns
+# df['timeframe_return'] = np.log(df[field] / df[field].shift(1))
+# df['strategy_return'] = df['timeframe_return'] * df['position']
+#
+# # count total the strategy returns
+# total = df['strategy_return'].cumsum()
+# print("last total value", total.iloc[-1:])
+#
+# print(df.tail())
 # quandl - daily data library - easy
 plotly_candles(df, pair_name, ['bollinger_high', 'bollinger_low'])
