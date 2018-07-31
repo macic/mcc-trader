@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import plotly.plotly as py
 import plotly.graph_objs as go
 import plotly
-plotly.tools.set_credentials_file('macic', 'qtTIvT3FMnMIEF7gTt5L')
+from config import plotly_key, plotly_username
+plotly.tools.set_credentials_file(plotly_username, plotly_key)
 
 matplotlib.use('TkAgg')
 
