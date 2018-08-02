@@ -1,13 +1,11 @@
-import pandas as pd
 import datetime
-import numpy as np
 import plotly.plotly as py
 import plotly.graph_objs as go
 import plotly
-from config import plotly_key, plotly_username
-from pymongo import MongoClient, operations
 
-mongo_client = MongoClient('mongodb://localhost:27017/')
+from database.services import get_data_from_timerange
+from settings.config import plotly_key, plotly_username
+
 plotly.tools.set_credentials_file(plotly_username, plotly_key)
 
 
@@ -18,51 +16,13 @@ time_range = '5T'
 filename = 'bitstampUSD.csv'
 start_date = '2018-07-28'
 end_date = '2018-12-12'
-pair_name = 'BTCUSD'
+pair_name = 'BTC_USD'
 
 money = 100
 open_trade_type = None
 open_trade_price = None
 open_trade_volume = 0
 
-def read_csv():
-    df = pd.read_csv(filename, names=['ts', 'price', 'volume'])
-    df.index = pd.to_datetime(df.ts, unit='s')
-    df = df.loc[start_date:end_date]
-    df = df['price'].resample(time_range).ohlc()
-    return df
-
-def save_to_db(symbol, grouping_range, df):
-    collection, collection_name = get_collection(grouping_range, symbol)
-    df['ts'] = pd.to_datetime(df.index)
-    records = df.to_dict('records')
-    ops = [operations.ReplaceOne(
-        filter={"ts": record["ts"]},
-        replacement=record,
-        upsert=True
-    ) for record in records]
-
-    result = collection.bulk_write(ops)
-    print("Saved results", len(records), collection_name)
-
-
-def get_collection(grouping_range, symbol):
-    db = mongo_client['main']
-    collection_name = str.join('_', (symbol, grouping_range))
-    collection = db[collection_name]
-    return collection, collection_name
-
-
-
-def get_data_from_timerange(symbol, grouping_range, ts_start, ts_end):
-    collection, collection_name = get_collection(grouping_range, symbol)
-    iso_start = datetime.datetime.fromtimestamp(ts_start, None)
-    iso_end = datetime.datetime.fromtimestamp(ts_end, None)
-    docs = collection.find({"ts" :  {'$gte': iso_start, '$lt': iso_end}})
-    df = pd.DataFrame(list(docs))
-    df.index = pd.to_datetime(df.ts, unit='s')
-    del df['_id']
-    return df
 
 def plotly_candles(df, name='candles', indicators=None):
     if not indicators:
@@ -83,23 +43,28 @@ def plotly_candles(df, name='candles', indicators=None):
                 name=indicator
             )
         )
-    py.plot(draw_obj, filename='simple_candlestick')
+    py.plot(draw_obj, filename=name)
 
 
-from ta import bollinger_hband_indicator
 """
 df = read_csv()
 save_to_db(pair_name, time_range, df)
 print(df.tail(5))
 del df
 """
-
+from settings.config import mongo_db, mongo_uri
+from database.services import  init_database
+mongo_client = init_database(mongo_uri)
 
 start_date_ts = datetime.datetime.strptime(start_date, "%Y-%m-%d").timestamp()
 end_date_ts = datetime.datetime.strptime(end_date, "%Y-%m-%d").timestamp()
-df = get_data_from_timerange(pair_name, time_range, start_date_ts, end_date_ts)
+df = get_data_from_timerange(mongo_client[mongo_db], pair_name, 'ticks', start_date_ts, end_date_ts)
+from collections import OrderedDict
+import pandas as pd
+#df['ts'] = pd.to_datetime(df['ts'], unit='s')
+df = df.set_index('ts')
+df = df['last'].resample(time_range).ohlc()
 print(df.tail(5))
-print(pair_name, time_range)
 
 rolling_mean = df[field].rolling(rolling_window).mean()
 rolling_std = df[field].rolling(rolling_window).std()
