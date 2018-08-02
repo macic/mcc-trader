@@ -30,18 +30,6 @@ def read_csv():
     return df
 
 
-def save_to_db(symbol, grouping_range, df):
-    collection, collection_name = get_collection(grouping_range, symbol)
-    df['ts'] = pd.to_datetime(df.index)
-    records = df.to_dict('records')
-    ops = [operations.ReplaceOne(
-        filter={"ts": record["ts"]},
-        replacement=record,
-        upsert=True
-    ) for record in records]
-
-    result = collection.bulk_write(ops)
-
 
 def save_ticks(db_instance, symbol, records):
     collection_name = build_collection_name(symbol, 'ticks')
