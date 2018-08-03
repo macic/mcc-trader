@@ -1,7 +1,7 @@
 from time import sleep, time
 from datetime import datetime
 from settings.config import kraken_secret, kraken_key, ticker_sleep_time, mongo_uri, mongo_db
-from database.services import init_database, save_ticks
+from database.services import init_database, save_data
 from trade.services import init_connection
 
 SYMBOL = 'BTC/USD'
@@ -28,7 +28,7 @@ while True:
 
     # save to proper collection in db
     if i % INSERT_FREQUENCY == 0:
-        save_ticks(mongo_client[mongo_db], SYMBOL, ticks)
+        save_data(mongo_client[mongo_db], SYMBOL, ticks)
         i = 0
         ticks = []
 

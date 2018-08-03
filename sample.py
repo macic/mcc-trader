@@ -3,7 +3,7 @@ import plotly.plotly as py
 import plotly.graph_objs as go
 import plotly
 
-from database.services import get_data_from_timerange
+from database.services import get_dataframe_from_timerange
 from settings.config import plotly_key, plotly_username
 
 plotly.tools.set_credentials_file(plotly_username, plotly_key)
@@ -58,7 +58,7 @@ mongo_client = init_database(mongo_uri)
 
 start_date_ts = datetime.datetime.strptime(start_date, "%Y-%m-%d").timestamp()
 end_date_ts = datetime.datetime.strptime(end_date, "%Y-%m-%d").timestamp()
-df = get_data_from_timerange(mongo_client[mongo_db], pair_name, 'ticks', start_date_ts, end_date_ts)
+df = get_dataframe_from_timerange(mongo_client[mongo_db], pair_name, 'ticks', start_date_ts, end_date_ts)
 from collections import OrderedDict
 import pandas as pd
 #df['ts'] = pd.to_datetime(df['ts'], unit='s')
