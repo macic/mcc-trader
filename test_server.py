@@ -11,6 +11,6 @@ def test():
     })
     print(kraken.fetch_balance())
     print(kraken.fetch_my_trades())
-
+    print(dir(kraken))
 
 test()

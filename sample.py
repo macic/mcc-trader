@@ -1,9 +1,8 @@
 import datetime
-import plotly.plotly as py
-import plotly.graph_objs as go
 import plotly
 
 from database.services import get_dataframe_from_timerange
+from helpers.common import plotly_candles
 from settings.config import plotly_key, plotly_username
 
 plotly.tools.set_credentials_file(plotly_username, plotly_key)
@@ -23,29 +22,6 @@ open_trade_type = None
 open_trade_price = None
 open_trade_volume = 0
 
-
-def plotly_candles(df, name='candles', indicators=None):
-    if not indicators:
-        indicators = []
-    candles = go.Candlestick(x=df.index,
-                             open=df.open,
-                             high=df.high,
-                             low=df.low,
-                             close=df.close,
-                             name=name)
-    draw_obj = [candles]
-    for indicator in indicators:
-        draw_obj.append(
-            go.Scatter(
-                x=df.index,
-                y=df[indicator],
-                mode='lines',
-                name=indicator
-            )
-        )
-    py.plot(draw_obj, filename=name)
-
-
 """
 df = read_csv()
 save_to_db(pair_name, time_range, df)
@@ -59,8 +35,6 @@ mongo_client = init_database(mongo_uri)
 start_date_ts = datetime.datetime.strptime(start_date, "%Y-%m-%d").timestamp()
 end_date_ts = datetime.datetime.strptime(end_date, "%Y-%m-%d").timestamp()
 df = get_dataframe_from_timerange(mongo_client[mongo_db], pair_name, 'ticks', start_date_ts, end_date_ts)
-from collections import OrderedDict
-import pandas as pd
 #df['ts'] = pd.to_datetime(df['ts'], unit='s')
 df = df.set_index('ts')
 df = df['last'].resample(time_range).ohlc()
