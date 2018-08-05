@@ -23,6 +23,3 @@ class TestStrategyParser(TestCase):
 
     def tearDown(self):
         self.client.drop_database(self.test_db)
-
-    def testConditionsPass(self):
-        df =

@@ -12,21 +12,25 @@ def backtest(symbol, grouping_range, strategy_name):
 
     shorts = []
     longs = []
-    sliced_df = []
+    revenue = []
+    strategy_object = strategyParser()
     for i in range(2, len(df.index)):
         sliced_df = df.iloc[0:i]
-        strategy_object = strategyParser(sliced_df)
+        strategy_object.set_df(sliced_df)
         result = strategy_object.check_positions(strategy_name)
         if result =='short':
             shorts.append({'ts': sliced_df.iloc[-1]['ts'], 'high': sliced_df.iloc[-1]['high']})
         elif result == 'long':
             longs.append({'ts': sliced_df.iloc[-1]['ts'], 'high': sliced_df.iloc[-1]['high']})
-
+        elif isinstance(result, float):
+            revenue.append(result)
 
     plotly_candles(sliced_df, 'backtest1', ['ema_fast'], shorts=shorts, longs=longs)
 
     print ("shorty", shorts)
     print ("longi", longs)
+    print ("revenue", revenue)
+    print ("suma", sum(revenue))
 
 if __name__=='__main__':
     baker.run()

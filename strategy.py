@@ -36,8 +36,8 @@ class testConditions(conditionsIntefrace):
 
 class strategyParser(object):
 
-    def __init__(self, df):
-        self.df = df
+    df = None
+    def __init__(self):
         self.open_position = None
         self.open_price = None
 
@@ -58,9 +58,13 @@ class strategyParser(object):
                 self.open_price = self.df.iloc[-1]['close']
                 return position
         else:
-            print("closing")
+            value = float(self.open_price-self.df.iloc[-1]['close'])
+            if self.open_position == 'long':
+                value = -value
+
             self.open_position = None
             self.open_price = None
+            return value
 
     def should_open_position(self, conditions):
 
