@@ -43,31 +43,33 @@ def plotly_candles(df, name='candles', indicators=None, shorts=None, longs=None)
             )
         )
     shapes = []
-    for short in shorts:
-        shapes.append({
-                    'type': 'line',
-                    'x0': short['ts'],
-                    'y0': int(short['high'])-0.01*int(short['high']),
-                    'x1': short['ts'],
-                    'y1': int(short['high'])+0.01*int(short['high']),
-                    'line': {
-                        'color': 'rgb(55, 128, 191)',
-                        'width': 1,
-                        'dash': 'dash'
-                    },
-                })
-    for long in longs:
-        shapes.append({
-                    'type': 'line',
-                    'x0': long['ts'],
-                    'y0': int(long['high'])-0.01*int(long['high']),
-                    'x1': long['ts'],
-                    'y1': int(long['high'])+0.01*int(long['high']),
-                    'line': {
-                        'color': 'rgb(128, 128, 55)',
-                        'width': 1,
-                        'dash': 'dash'
-                    },
+    if shorts:
+        for short in shorts:
+            shapes.append({
+                        'type': 'line',
+                        'x0': short['ts'],
+                        'y0': int(short['high'])-0.01*int(short['high']),
+                        'x1': short['ts'],
+                        'y1': int(short['high'])+0.01*int(short['high']),
+                        'line': {
+                            'color': 'rgb(55, 128, 191)',
+                            'width': 1,
+                            'dash': 'dash'
+                        },
+                    })
+    if longs:
+        for long in longs:
+            shapes.append({
+                        'type': 'line',
+                        'x0': long['ts'],
+                        'y0': int(long['high'])-0.01*int(long['high']),
+                        'x1': long['ts'],
+                        'y1': int(long['high'])+0.01*int(long['high']),
+                        'line': {
+                            'color': 'rgb(128, 128, 55)',
+                            'width': 1,
+                            'dash': 'dash'
+                        },
                 })
     if shapes:
         layout = {

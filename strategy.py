@@ -13,31 +13,6 @@ class conditionsIntefrace(object):
         raise NotImplementedError
 
 
-class testConditions(conditionsIntefrace):
-
-    def open_position(self, df):
-        # poprzednia swieca zawiera EMA 12
-        # high ostatniej swiecy jest ponizej EMA 12 - SHORT
-
-        # poprzednia swieca zawiera EMA 12
-        # low ostatniej swiecy jest powyzej EMA 12 - LONG
-
-        df['ema_fast'] = ta.ema_fast(df['close'])
-        last = df.iloc[-1]
-        previous = df.iloc[-2]
-
-        if previous['high'] >= previous['ema_fast'] >= previous['low']:
-            if last['high'] < last['ema_fast']:
-                return 'short'
-            elif last['low'] > last['ema_fast']:
-                return 'long'
-
-        return False
-
-    def close_position(self, df):
-        return True
-
-
 class emafastConditions(conditionsIntefrace):
 
     def open_position(self, df, n_fast=12):
@@ -87,7 +62,7 @@ class strategyParser(object):
     def check_positions(self, strategy_name, **kwargs):
         #print(yellow("DF"), self.df.iloc[-1]['close'])
         if self.balance <= 0:
-            exit()
+            return 0
         conditions = getattr(sys.modules[__name__], strategy_name)
         if not issubclass(conditions, conditionsIntefrace):
             raise NotImplementedError
@@ -98,7 +73,7 @@ class strategyParser(object):
                 self.open_volume = Decimal(self.balance / 2 / current_price).quantize(Decimal('.001'),
                                                                                       rounding=ROUND_DOWN)
                 if self.open_volume == 0.000:
-                    exit()
+                    return 0
                 self.open_price = Decimal(current_price)
                 self.fees_taken = Decimal(self.open_price * self.open_volume * self.MAKER_FEE).quantize(Decimal('.01'),rounding=ROUND_UP)
                 self.open_position = should_open

@@ -1,6 +1,6 @@
 import datetime
 import pandas as pd
-from pymongo import MongoClient, operations
+from pymongo import MongoClient, operations, ASCENDING
 from pymongo.errors import BulkWriteError
 from helpers.console_colors import red, dump, yellow, green
 from helpers.common import convert_docs_to_df, resample_df, add_ts_based_on_index
@@ -21,16 +21,14 @@ def get_dataframe_from_timerange(db_instance, symbol, grouping_range, ts_start, 
         find_query['$lt'] = iso_end
     else:
         iso_end = ''  # done only for printing/logging below
-    print(yellow("Fetching data for %s in timeframe %s - %s" % (symbol, iso_start, iso_end)))
-    docs = collection.find({"ts": find_query})
+    print(yellow("Fetching data for %s in timeframe %s - %s" % (collection_name, iso_start, iso_end)))
+    docs = collection.find({"ts": find_query}).sort([("ts", ASCENDING)])
     return convert_docs_to_df(docs)
 
 
 def save_data(db_instance, symbol, records, grouping_range='ticks'):
     collection_name = build_collection_name(symbol, grouping_range)
     collection = db_instance[collection_name]
-    for record in records:
-        print(record)
     ops = [operations.ReplaceOne(
         filter={"ts": record["ts"]},
         replacement=record,
@@ -40,14 +38,13 @@ def save_data(db_instance, symbol, records, grouping_range='ticks'):
     try:
         collection.bulk_write(ops)
     except BulkWriteError as bwe:
-        print(red("Errors when writing ticks:"))
+        print(red("Errors when writing records:"))
         dump(bwe.details)
-    print(green("Saved %i ticks to %s. Last from %s." % (len(records), collection_name, records[-1]['ts'])))
+    print(green("Saved %i records to %s. Last from %s." % (len(records), collection_name, records[-1]['ts'])))
 
 
-def resample_and_save_ticks(db_instance, symbol, grouping_range, ts_start):
-    ticks = get_dataframe_from_timerange(db_instance, symbol, 'ticks', ts_start)
-    df = resample_df(ticks, 'last', grouping_range)
+def resample_and_save_ticks(ticks, db_instance, symbol, grouping_range, price_field='last'):
+    df = resample_df(ticks, price_field, grouping_range)
     df = add_ts_based_on_index(df)
     records = df.to_dict('records')
     save_data(db_instance, symbol, records, grouping_range)

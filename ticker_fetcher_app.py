@@ -37,3 +37,5 @@ while True:
     # wait
     if period > 0:
         sleep(period)
+
+    broker.create_limit_buy_order()

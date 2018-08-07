@@ -90,7 +90,9 @@ class TestDatabaseServices(TestCase):
         self.assertEqual(counter, len(records))
 
         # testing resampling here
-        resample_and_save_ticks(self.test_db, symbol, grouping_range, ts_now -1)
+        ticks = get_dataframe_from_timerange(self.test_db, symbol, 'ticks', ts_now -1)
+
+        resample_and_save_ticks(ticks, self.test_db, symbol, grouping_range)
 
         results = convert_docs_to_df(self.test_db[converted_collection_name].find())
         self.assertEqual(len(results), 3)
