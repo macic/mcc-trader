@@ -4,10 +4,16 @@ from pymongo import MongoClient, operations, ASCENDING
 from pymongo.errors import BulkWriteError
 from helpers.console_colors import red, dump, yellow, green
 from helpers.common import convert_docs_to_df, resample_df, add_ts_based_on_index
+from settings.config import mongo_db, mongo_uri
 
 
 def init_database(uri):
     return MongoClient(uri)
+
+
+# @todo make db_instance optional in methods, and use this if not set
+client = init_database(mongo_uri)
+db_instance = client[mongo_db]
 
 
 def get_dataframe_from_timerange(db_instance, symbol, grouping_range, ts_start, ts_end=None) -> pd.DataFrame:
@@ -52,3 +58,26 @@ def resample_and_save_ticks(ticks, db_instance, symbol, grouping_range, price_fi
 
 def build_collection_name(symbol, grouping_range):
     return str.join('_', (symbol.replace('/', '_').replace('-', '_'), grouping_range))
+
+
+def get_last_order(symbol):
+    from trade.order import Order
+    docs =db_instance['orders'].find_one({"symbol": symbol, "status": "open"})
+    if docs:
+        del docs['_id']
+        return Order(**docs)
+    return False
+
+
+def save_order(data):
+    db_instance['orders'].replace_one({'id': data['id']}, replacement=data, upsert=True)
+    print(green("Saved order"), data)
+
+
+def save_balance(data):
+    data['currency'] = 'USD'
+    db_instance['balance'].replace_one({'currency': 'USD'}, replacement=data, upsert=True)
+    print(green("Saved balance"), data)
+
+def clear_collection(collection_name):
+    db_instance[collection_name].remove({})
