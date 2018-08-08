@@ -10,12 +10,13 @@ broker = ccxt.kraken({
     'verbose': False,  # switch it to False if you don't want the HTTP log
 })
 
+MAKER_FEE = 0.0016
 
 @dataclass()
 class Order:
     status: str = ''  # open / closed
     open_price: float = 0.0  # price used to open the order
-    closing_price: float = 0.0  # price used to close the order
+    close_price: float = 0.0  # price used to close the order
 
     symbol: str = ''  # BTCUSD
     position: str = ''  # buy / sell
@@ -25,10 +26,12 @@ class Order:
     volume: float = 0.0  # volume
     leverage: int = 0
     fees_taken: float = 0.0
-    closing_fees_taken: float = 0.0
+    close_fees_taken: float = 0.0
     id: str = ''
+    open_ts: int = 0
+    close_ts: int = 0
 
-    def open_order(self):
+    def open_order(self, ts):
         # response = broker.create_order(self.symbol, 'limit', self.position, self.volume, self.open_price)
         # @TODO call ccxt.open_order or whatever
         # parse respone and update data
@@ -38,28 +41,34 @@ class Order:
             self.status = 'open'
             self.ordertype = 'limit'
             money_taken = float("{:.2f}".format(self.open_price * self.volume))
-            print("money taken", money_taken)
-            self.fees_taken = float("{:.2f}".format(money_taken * 0.016))
+
+
+            self.fees_taken = float("{:.2f}".format(money_taken * MAKER_FEE))
+            self.open_ts = ts
             self.save()
+            print("money TAKEN", money_taken + self.fees_taken)
             return money_taken + self.fees_taken
         return False
 
-    def close_order(self, closing_price, closing_position):
+    def close_order(self, closing_price, ts):
         # response = broker.create_order(self.symbol, 'limit', self.position, self.volume, self.open_price)
         response = {'id': self.id}
         if response.get('id'):
             self.status = 'closed'
-            self.closing_price = closing_price
+            self.close_price = closing_price
             short_adjustement = 0
             opening_money = float("{:.2f}".format(self.open_price * self.volume))
             closing_money = float("{:.2f}".format(closing_price * self.volume))
             if self.position=='sell':
                 short_adjustement = opening_money - closing_money
             money_received = short_adjustement + closing_money
-            print("money received", money_received)
-            self.closing_fees_taken = float("{:.2f}".format(money_received * 0.016))
+
+            self.close_fees_taken = float("{:.2f}".format(money_received * MAKER_FEE))
+            self.close_ts = ts
             self.save()
-            return money_received - self.closing_fees_taken
+            print("money RECEIVED", money_received - self.close_fees_taken)
+            print("--------")
+            return money_received - self.close_fees_taken
         return False
 
     def save(self):
