@@ -12,6 +12,7 @@ broker = ccxt.kraken({
 
 MAKER_FEE = 0.0016
 
+
 @dataclass()
 class Order:
     status: str = ''  # open / closed
@@ -42,11 +43,9 @@ class Order:
             self.ordertype = 'limit'
             money_taken = float("{:.2f}".format(self.open_price * self.volume))
 
-
             self.fees_taken = float("{:.2f}".format(money_taken * MAKER_FEE))
             self.open_ts = ts
             self.save()
-            print("money TAKEN", money_taken + self.fees_taken)
             return money_taken + self.fees_taken
         return False
 
@@ -56,18 +55,17 @@ class Order:
         if response.get('id'):
             self.status = 'closed'
             self.close_price = closing_price
-            short_adjustement = 0
             opening_money = float("{:.2f}".format(self.open_price * self.volume))
             closing_money = float("{:.2f}".format(closing_price * self.volume))
-            if self.position=='sell':
+            if self.position == 'sell':
                 short_adjustement = opening_money - closing_money
-            money_received = short_adjustement + closing_money
+                money_received = opening_money + short_adjustement
+            elif self.position == 'buy':
+                money_received = closing_money
 
             self.close_fees_taken = float("{:.2f}".format(money_received * MAKER_FEE))
             self.close_ts = ts
             self.save()
-            print("money RECEIVED", money_received - self.close_fees_taken)
-            print("--------")
             return money_received - self.close_fees_taken
         return False
 

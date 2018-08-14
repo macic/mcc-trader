@@ -12,6 +12,14 @@ def convert_docs_to_df(docs: Cursor) -> pd.DataFrame:
     del df['_id']
     return df
 
+def convert_orders_to_df(docs: Cursor) -> pd.DataFrame:
+    df = pd.DataFrame(list(docs))
+    df.open_ts = pd.to_datetime(df.open_ts, unit='s')
+    df.close_ts = pd.to_datetime(df.close_ts, unit='s')
+    del df['_id']
+    return df
+
+
 
 def resample_df(df: pd.DataFrame, field: str, grouping_range: str) -> pd.DataFrame:
     return df[field].resample(grouping_range).ohlc()
@@ -22,7 +30,7 @@ def add_ts_based_on_index(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def plotly_candles(df, name='candles', indicators=None, shorts=None, longs=None):
+def plotly_candles(df, name='candles', indicators=None, orders=None):
     if not indicators:
         indicators = []
     candles = go.Candlestick(x=df.index,
@@ -42,38 +50,53 @@ def plotly_candles(df, name='candles', indicators=None, shorts=None, longs=None)
                 name=indicator
             )
         )
-    shapes = []
-    if shorts:
-        for short in shorts:
-            shapes.append({
-                        'type': 'line',
-                        'x0': short['ts'],
-                        'y0': int(short['high'])-0.01*int(short['high']),
-                        'x1': short['ts'],
-                        'y1': int(short['high'])+0.01*int(short['high']),
-                        'line': {
-                            'color': 'rgb(55, 128, 191)',
-                            'width': 1,
-                            'dash': 'dash'
-                        },
-                    })
-    if longs:
-        for long in longs:
-            shapes.append({
-                        'type': 'line',
-                        'x0': long['ts'],
-                        'y0': int(long['high'])-0.01*int(long['high']),
-                        'x1': long['ts'],
-                        'y1': int(long['high'])+0.01*int(long['high']),
-                        'line': {
-                            'color': 'rgb(128, 128, 55)',
-                            'width': 1,
-                            'dash': 'dash'
-                        },
-                })
-    if shapes:
+    annotations = []
+    if orders is not None:
+        for idx, order in orders.iterrows():
+            text = order.position + ' ' + str(order.volume)
+            ay = 130 if order.position=='buy' else -130
+            ax= 20
+            annotations.append({
+                'x': order.open_ts,
+                'y': order.open_price,
+                'text': 'open '+ text,
+                'showarrow': True,
+                'font': {'family':'Courier New, monospace','size':14, 'color':'#ffffff'},
+                'align':'center',
+                'arrowhead': 2,
+                'arrowsize': 1,
+                'arrowwidth': 2,
+                'arrowcolor':'#636363',
+                'ax':  ax,
+                'ay': ay,
+                'bordercolor': '#c7c7c7',
+                'borderwidth': 2,
+                'borderpad': 4,
+                'bgcolor': '#ff7f0e',
+                'opacity': 0.8
+            })
+            annotations.append({
+                'x': order.close_ts,
+                'y': order.close_price,
+                'text': 'close',
+                'showarrow': True,
+                'font': {'family': 'Courier New, monospace', 'size': 14, 'color': '#ffffff'},
+                'align': 'center',
+                'arrowhead': 2,
+                'arrowsize': 1,
+                'arrowwidth': 2,
+                'arrowcolor': '#636363',
+                'ax': ax,
+                'ay': -ay,
+                'bordercolor': '#c7c7c7',
+                'borderwidth': 2,
+                'borderpad': 4,
+                'bgcolor': '#ff7f0e',
+                'opacity': 0.8
+            })
+    if annotations:
         layout = {
-            'shapes': shapes
+            'annotations': annotations
         }
     if layout:
         fig = {
