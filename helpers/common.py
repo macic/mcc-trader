@@ -14,9 +14,10 @@ def convert_docs_to_df(docs: Cursor) -> pd.DataFrame:
 
 def convert_orders_to_df(docs: Cursor) -> pd.DataFrame:
     df = pd.DataFrame(list(docs))
-    df.open_ts = pd.to_datetime(df.open_ts, unit='s')
-    df.close_ts = pd.to_datetime(df.close_ts, unit='s')
-    del df['_id']
+    #print(df.head())
+    #df.open_ts = pd.to_datetime(df.open_ts, unit='s')
+    #df.close_ts = pd.to_datetime(df.close_ts, unit='s')
+    #del df['_id']
     return df
 
 

@@ -1,16 +1,15 @@
 import baker
-from database.services import init_database, get_dataframe_from_timerange, save_data, resample_and_save_ticks, \
+from database.services import init_database, get_dataframe_from_timerange, resample_and_save_ticks, \
     get_last_order, clear_collection, get_orders
 from settings.config import *
-from strategy import strategyParser
 from trade.order import Order
-from trade.indicators import multiplied_keltner_channel_lband, multiplied_keltner_channel_hband
 from trade.balance import Balance
 from helpers.common import plotly_candles
 from backtest.services import read_csv
 import ta
+from time import time
 
-from trade.strategies import EmaStrategy
+from trade.strategies import EmaStrategy, BBPinbarStrategy
 
 client = init_database(mongo_uri)
 db = client[mongo_db]
@@ -31,14 +30,18 @@ def resample(symbol, to_grouping):
 
 
 @baker.command
-def plot(symbol, grouping_range, ts_start=0):
+def plot(symbol, grouping_range, ts_start=0, skip_orders=False):
     import datetime
-    d = datetime.date(2017, 1, 1)
+    d = datetime.date(2018, 1, 11)
+    d2 = datetime.date(2018, 12, 18)
     import time
     ts_start = time.mktime(d.timetuple())
-    df = get_dataframe_from_timerange(db, symbol, grouping_range, ts_start=ts_start)
+    ts_end = time.mktime(d2.timetuple())
+    df = get_dataframe_from_timerange(db, symbol, grouping_range, ts_start=ts_start, ts_end=ts_end)
     df['ema_fast'] = ta.ema_fast(df['close'], 32)
     df['ema_slow'] = ta.ema_slow(df['close'], 9)
+    df['bollinger_hband'] = ta.bollinger_hband(df['close'])
+    df['bollinger_lband'] = ta.bollinger_lband(df['close'])
     df['ichimoku_a'] = ta.ichimoku_a(df['high'], df['low'])
     df['ichimoku_b'] = ta.ichimoku_b(df['high'], df['low'])
     # df['keltner_low'] = ta.keltner_channel_lband(df['high'], df['low'], df['close'])
@@ -50,9 +53,12 @@ def plot(symbol, grouping_range, ts_start=0):
     # df['mkh'] = multiplied_keltner_channel_hband(df['high'], df['low'], df['close'], n=14, m=2)
     # plotly_candles(df, 'test_plot', ['ichimoku_a', 'ichimoku_b'])
 
-    orders = get_orders(symbol, ts_start=ts_start)
-    #print(orders.head())
-    plotly_candles(df, 'test_plot', orders=orders, indicators=['ema_fast', 'ema_slow'])
+    if not skip_orders:
+        orders = get_orders(symbol, ts_start=ts_start, ts_end=ts_end)
+    else:
+        orders = None
+    #plotly_candles(df, 'test_plot', orders=orders, indicators=['bollinger_hband', 'bollinger_lband'])
+    plotly_candles(df, 'test_plot', orders=orders)
 
 
 @baker.command
@@ -69,7 +75,8 @@ def run_strategy(symbol, grouping_range, ts_start=0, df=None, indicator_args=Non
 
     if df is None:
         df = get_dataframe_from_timerange(db, symbol, grouping_range, ts_start=ts_start)
-    strategy = EmaStrategy(df, indicators_args=indicator_args)
+    # strategy = EmaStrategy(df, indicators_args=indicator_args)
+    strategy = BBPinbarStrategy(df, indicators_args=indicator_args)
 
     order = get_last_order(symbol)
     last_price = df.iloc[-1]['close']
@@ -93,36 +100,51 @@ def run_strategy(symbol, grouping_range, ts_start=0, df=None, indicator_args=Non
         balance_taken = order.open_order(ts)
         balance.set_balance(balance.current_balance - balance_taken)
 
+
 import sys
+
+
 @baker.command
 def backtest_strategy(symbol, grouping_range, ts_start=0, clear_orders=False):
     df = get_dataframe_from_timerange(db, symbol, grouping_range, ts_start=ts_start)
 
-    n_slows = [32] #32
-    n_fasts = [9]  #9
-    stop_loss_percentages = [2] #2
-    take_profit_percentages = [12] #12
-    for n_slow in n_slows:
-        for n_fast in n_fasts:
-            for sl_p in stop_loss_percentages:
-                for tp_p in take_profit_percentages:
-                    params = {'stop_loss_percentage': sl_p, 'take_profit_percentage': tp_p}
-                    if clear_orders:
-                        clear_collection('orders')
-                    balance.set_balance(1000.0)
-                    indicator_args ={'ema_slow': {'n_slow': n_slow}, 'ema_fast': {'n_fast': n_fast}}
-                    print("STARTING", indicator_args, balance.current_balance, params)
-                    sys.stdout.flush()
+    # EMA - n_slow = 32, n_fast= 9, sl_p = 2, tp_p=12 grouping=H
 
-                    end = len(df.index)
-                    for end_pos in range(50, end):
-                        start_pos = 0 if end_pos < 300 else end_pos-300
-                        sliced_df = df.iloc[start_pos:end_pos].copy()
-                        run_strategy(symbol, grouping_range, ts_start, df=sliced_df, indicator_args=indicator_args, **params)
-                        del sliced_df
-                    print("FINAL BALANCE", indicator_args, balance.current_balance, params)
+    n_range = [12]#[9, 12, 14, 18, 20, 22, 24]
+    ndev_range = [2.2]#[1.7, 1.8, 1.9, 2, 2.1, 2.2]
+    pinbar_min_size_range = [80]#[40, 50, 60, 70, 80]
+    pinbar_percentage_range = [30]#[10, 15, 20, 25, 30]
+    tp_percentage_range = [6,8,10,12,14]
+    sl_percentage_range = [1,1.5,2,2.5,3]
+    for tp_percentage in tp_percentage_range:
+        for sl_percentage in sl_percentage_range:
+            for n in n_range:
+                for ndev in ndev_range:
+                    for pinbar_min_size in pinbar_min_size_range:
+                        for pinbar_percentage in pinbar_percentage_range:
+                            # set args
+                            indicator_args = {'bollinger_lband': {'n': n, 'ndev': ndev},
+                                              'bollinger_hband': {'n': n, 'ndev': ndev}}
+                            params = {'pinbar_percentage': pinbar_percentage,
+                                      'pinbar_min_size': pinbar_min_size,
+                                      'take_profit_percentage': tp_percentage,
+                                      'trailing_stop_loss_percentage': sl_percentage}
 
-    #plotly_candles(df, 'backtest2', indicators=['ema_fast', 'ema_slow'])
+                            if clear_orders:
+                                clear_collection('orders')
+                            balance.set_balance(1000.0)
+                            start_ts = int(time())
+                            print("STARTING", indicator_args, balance.current_balance, params)
+
+                            end = len(df.index)
+                            for end_pos in range(50, end):
+                                start_pos = 0 if end_pos < 300 else end_pos - 300
+                                sliced_df = df.iloc[start_pos:end_pos].copy()
+                                run_strategy(symbol, grouping_range, ts_start, df=sliced_df, indicator_args=indicator_args,
+                                             **params)
+                                del sliced_df
+                            print("FINAL BALANCE", indicator_args, balance.current_balance, params, int(time() - start_ts))
+                            sys.stdout.flush()
 
 
 if __name__ == '__main__':
