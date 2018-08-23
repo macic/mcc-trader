@@ -1,14 +1,17 @@
 import baker
+import ast
+from time import time, sleep, mktime
+import json
+import pandas as pd
+import datetime
 from database.services import init_database, get_dataframe_from_timerange, resample_and_save_ticks, \
-    get_last_order, clear_collection, get_orders
+    get_last_order, clear_collection, get_orders, save_data
 from settings.config import *
 from trade.order import Order
 from trade.balance import Balance
 from helpers.common import plotly_candles
 from backtest.services import read_csv
 import ta
-from time import time
-
 from trade.strategies import EmaStrategy, BBPinbarStrategy
 
 client = init_database(mongo_uri)
@@ -24,24 +27,58 @@ def import_and_convert(filename, ts_field, symbol, grouping_range):
 
 
 @baker.command
+def read_ohlc_from_kraken(symbol, interval, ts_start, ts_end=None):
+    import requests
+    url = 'https://api.kraken.com/0/public/OHLC'
+    if ts_end is None:
+        ts_end = int(time())
+    since = int(ts_start)
+    prev_last = 0
+    while (since < ts_end and prev_last != since):
+        response = requests.get(url, {'pair': symbol, 'interval': interval, 'since': since})
+        print(response.status_code, response.content)
+        parsed_response = json.loads(response.content)
+        to_add_list = next(iter(parsed_response['result'].values()))
+        items = [item[0:5] for item in to_add_list]
+        prev_last = since
+
+        # iterate and fix values to be pure 'floats' by poor mans hack literal eval
+        for item in items:
+            for index in range(1, 4):
+                item[index] = ast.literal_eval(item[index])
+
+        df = pd.DataFrame(items, columns=['ts', 'open', 'high', 'low', 'close'])
+        df['ts'] = pd.to_datetime(df.ts, unit='s')
+        records = df.to_dict('records')
+        if int(interval)==60:
+            grouping_range = 'H'
+        else:
+            grouping_range = interval + 'T'
+        save_data(symbol, records, grouping_range)
+        sleep(5)
+        since = int(parsed_response['result']['last'])
+
+
+@baker.command
 def resample(symbol, to_grouping):
     ticks = get_dataframe_from_timerange(db, symbol, 'ticks', 0)
     resample_and_save_ticks(ticks, symbol, to_grouping)
 
 
 @baker.command
-def plot(symbol, grouping_range, ts_start=0, skip_orders=False):
-    import datetime
-    d = datetime.date(2018, 1, 11)
-    d2 = datetime.date(2018, 12, 18)
-    import time
-    ts_start = time.mktime(d.timetuple())
-    ts_end = time.mktime(d2.timetuple())
+def plot(symbol, grouping_range, ts_start=0, ts_end=0, skip_orders=False):
+    if not ts_start:
+        d = datetime.date(2018, 1, 11)
+        ts_start = mktime(d.timetuple())
+    if not ts_end:
+        d2 = datetime.date(2018, 12, 18)
+        ts_end = mktime(d2.timetuple())
+
     df = get_dataframe_from_timerange(db, symbol, grouping_range, ts_start=ts_start, ts_end=ts_end)
     df['ema_fast'] = ta.ema_fast(df['close'], 32)
     df['ema_slow'] = ta.ema_slow(df['close'], 9)
-    df['bollinger_hband'] = ta.bollinger_hband(df['close'])
-    df['bollinger_lband'] = ta.bollinger_lband(df['close'])
+    df['bollinger_hband'] = ta.bollinger_hband(df['close'], 14)
+    df['bollinger_lband'] = ta.bollinger_lband(df['close'], 14)
     df['ichimoku_a'] = ta.ichimoku_a(df['high'], df['low'])
     df['ichimoku_b'] = ta.ichimoku_b(df['high'], df['low'])
     # df['keltner_low'] = ta.keltner_channel_lband(df['high'], df['low'], df['close'])
@@ -57,8 +94,8 @@ def plot(symbol, grouping_range, ts_start=0, skip_orders=False):
         orders = get_orders(symbol, ts_start=ts_start, ts_end=ts_end)
     else:
         orders = None
-    #plotly_candles(df, 'test_plot', orders=orders, indicators=['bollinger_hband', 'bollinger_lband'])
-    plotly_candles(df, 'test_plot', orders=orders)
+    plotly_candles(df, 'test_plot', orders=orders, indicators=['bollinger_hband', 'bollinger_lband'])
+    #plotly_candles(df, 'test_plot', orders=orders)
 
 
 @baker.command
@@ -110,12 +147,12 @@ def backtest_strategy(symbol, grouping_range, ts_start=0, clear_orders=False):
 
     # EMA - n_slow = 32, n_fast= 9, sl_p = 2, tp_p=12 grouping=H
 
-    n_range = [12]#[9, 12, 14, 18, 20, 22, 24]
-    ndev_range = [2.2]#[1.7, 1.8, 1.9, 2, 2.1, 2.2]
-    pinbar_min_size_range = [80]#[40, 50, 60, 70, 80]
-    pinbar_percentage_range = [30]#[10, 15, 20, 25, 30]
-    tp_percentage_range = [6,8,10,12,14]
-    sl_percentage_range = [1,1.5,2,2.5,3]
+    n_range = [14]  # [9, 12, 14, 18, 20, 22, 24]
+    ndev_range = [2.0]  # [1.7, 1.8, 1.9, 2, 2.1, 2.2]
+    pinbar_min_size_range = [40, 50, 60, 70, 80]
+    pinbar_percentage_range = [10, 15, 20, 25, 30, 35]
+    tp_percentage_range = [6,8,10,12]
+    sl_percentage_range = [1,2,3,4]
     for tp_percentage in tp_percentage_range:
         for sl_percentage in sl_percentage_range:
             for n in n_range:
@@ -140,10 +177,12 @@ def backtest_strategy(symbol, grouping_range, ts_start=0, clear_orders=False):
                             for end_pos in range(50, end):
                                 start_pos = 0 if end_pos < 300 else end_pos - 300
                                 sliced_df = df.iloc[start_pos:end_pos].copy()
-                                run_strategy(symbol, grouping_range, ts_start, df=sliced_df, indicator_args=indicator_args,
+                                run_strategy(symbol, grouping_range, ts_start, df=sliced_df,
+                                             indicator_args=indicator_args,
                                              **params)
                                 del sliced_df
-                            print("FINAL BALANCE", indicator_args, balance.current_balance, params, int(time() - start_ts))
+                            print("FINAL BALANCE", indicator_args, balance.current_balance, params,
+                                  int(time() - start_ts))
                             sys.stdout.flush()
 
 

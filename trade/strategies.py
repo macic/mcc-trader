@@ -25,6 +25,11 @@ class EmaStrategy(StrategyParser):
 
 
 class BBPinbarStrategy(StrategyParser):
+    # BTC USD
+    # n = 14
+    # n_dev = 2.0
+    # pinbar_min = 80
+    # pinbar_perc = 35
     indicators_required = ['bollinger_hband', 'bollinger_lband']
 
     def should_open_position(self, **kwargs):

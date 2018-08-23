@@ -53,7 +53,7 @@ def resample_and_save_ticks(ticks, symbol, grouping_range, price_field='last'):
     df = resample_df(ticks, price_field, grouping_range)
     df = add_ts_based_on_index(df)
     records = df.to_dict('records')
-    save_data(db_instance, symbol, records, grouping_range)
+    save_data(symbol, records, grouping_range)
 
 
 def build_collection_name(symbol, grouping_range):

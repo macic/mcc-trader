@@ -28,7 +28,7 @@ while True:
 
     # save to proper collection in db
     if i % INSERT_FREQUENCY == 0:
-        save_data(mongo_client[mongo_db], SYMBOL, ticks)
+        save_data(SYMBOL, ticks)
         i = 0
         ticks = []
 
