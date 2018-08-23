@@ -32,7 +32,7 @@ def get_dataframe_from_timerange(db_instance, symbol, grouping_range, ts_start, 
     return convert_docs_to_df(docs)
 
 
-def save_data(db_instance, symbol, records, grouping_range='ticks'):
+def save_data(symbol, records, grouping_range='ticks'):
     collection_name = build_collection_name(symbol, grouping_range)
     collection = db_instance[collection_name]
     ops = [operations.ReplaceOne(
