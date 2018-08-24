@@ -25,6 +25,11 @@ def convert_orders_to_df(docs: Cursor) -> pd.DataFrame:
 def resample_df(df: pd.DataFrame, field: str, grouping_range: str) -> pd.DataFrame:
     return df[field].resample(grouping_range).ohlc()
 
+def resample_ohlc(df: pd.DataFrame, grouping_range: str) -> pd.DataFrame:
+    return df.resample(grouping_range).agg({'open': 'first',
+                           'high': 'max',
+                           'low': 'min',
+                           'close': 'last'})
 
 def add_ts_based_on_index(df: pd.DataFrame) -> pd.DataFrame:
     df['ts'] = pd.to_datetime(df.index)

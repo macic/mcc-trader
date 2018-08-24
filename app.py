@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import datetime
 from database.services import init_database, get_dataframe_from_timerange, resample_and_save_ticks, \
-    get_last_order, clear_collection, get_orders, save_data
+    get_last_order, clear_collection, get_orders, save_data, resample_and_save
 from settings.config import *
 from trade.order import Order
 from trade.balance import Balance
@@ -60,9 +60,12 @@ def read_ohlc_from_kraken(symbol, interval, ts_start, ts_end=None):
 
 
 @baker.command
-def resample(symbol, to_grouping):
-    ticks = get_dataframe_from_timerange(db, symbol, 'ticks', 0)
-    resample_and_save_ticks(ticks, symbol, to_grouping)
+def resample(symbol, from_grouping, to_grouping):
+    data = get_dataframe_from_timerange(db, symbol, from_grouping, 0)
+    if from_grouping=='ticks':
+        resample_and_save_ticks(data, symbol, to_grouping)
+    else:
+        resample_and_save(data, symbol, to_grouping)
 
 
 @baker.command

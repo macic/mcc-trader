@@ -3,7 +3,7 @@ import pandas as pd
 from pymongo import MongoClient, operations, ASCENDING
 from pymongo.errors import BulkWriteError
 from helpers.console_colors import red, dump, yellow, green
-from helpers.common import convert_docs_to_df, resample_df, add_ts_based_on_index, convert_orders_to_df
+from helpers.common import convert_docs_to_df, resample_df, add_ts_based_on_index, convert_orders_to_df, resample_ohlc
 from settings.config import mongo_db, mongo_uri
 
 
@@ -56,16 +56,23 @@ def resample_and_save_ticks(ticks, symbol, grouping_range, price_field='last'):
     save_data(symbol, records, grouping_range)
 
 
+def resample_and_save(ohlc, symbol, to_grouping):
+    df = resample_ohlc(ohlc, to_grouping)
+    df = add_ts_based_on_index(df)
+    records = df.to_dict('records')
+    save_data(symbol, records, to_grouping)
+
+
 def build_collection_name(symbol, grouping_range):
     return str.join('_', (symbol.replace('/', '_').replace('-', '_'), grouping_range))
 
 
-def get_last_order(symbol):
+def get_last_order(symbol, status="open"):
     from trade.order import Order
-    docs =db_instance['orders'].find_one({"symbol": symbol, "status": "open"})
+    docs = db_instance['orders'].find_one({"symbol": symbol, "status": status})
     if docs:
         del docs['_id']
-        return Order(**docs) # todo doesnt belong here!
+        return Order(**docs)  # todo doesnt belong here!
     return False
 
 
@@ -82,6 +89,7 @@ def get_orders(symbol, ts_start, ts_end=None) -> pd.DataFrame:
     docs = db_instance['orders'].find({'symbol': symbol, "open_ts": find_query}).sort([("open_ts", ASCENDING)])
     return convert_orders_to_df(docs)
 
+
 def save_order(data):
     db_instance['orders'].replace_one({'id': data['id']}, replacement=data, upsert=True)
     print(green("Saved order"), data)
@@ -91,6 +99,7 @@ def save_balance(data):
     data['currency'] = 'USD'
     db_instance['balance'].replace_one({'currency': 'USD'}, replacement=data, upsert=True)
     print(green("Saved balance"), data)
+
 
 def clear_collection(collection_name):
     db_instance[collection_name].remove({})
