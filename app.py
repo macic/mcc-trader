@@ -1,11 +1,8 @@
 import baker
-import ast
-from time import time, sleep, mktime
-import json
-import pandas as pd
+from time import time, mktime
 import datetime
 from database.services import init_database, get_dataframe_from_timerange, resample_and_save_ticks, \
-    get_last_order, clear_collection, get_orders, save_data, resample_and_save
+    get_last_order, clear_collection, get_orders, resample_and_save
 from settings.config import *
 from trade.order import Order
 from trade.balance import Balance
@@ -27,43 +24,9 @@ def import_and_convert(filename, ts_field, symbol, grouping_range):
 
 
 @baker.command
-def read_ohlc_from_kraken(symbol, interval, ts_start, ts_end=None):
-    import requests
-    url = 'https://api.kraken.com/0/public/OHLC'
-    if ts_end is None:
-        ts_end = int(time())
-    since = int(ts_start)
-    prev_last = 0
-    while (since < ts_end and prev_last != since):
-        response = requests.get(url, {'pair': symbol, 'interval': interval, 'since': since})
-        print(response.status_code, response.content)
-        if response.status_code == 200:
-            parsed_response = json.loads(response.content)
-            to_add_list = next(iter(parsed_response['result'].values()))
-            items = [item[0:5] for item in to_add_list]
-            prev_last = since
-
-            # iterate and fix values to be pure 'floats' by poor mans hack literal eval
-            for item in items:
-                for index in range(1, 5):
-                    item[index] = ast.literal_eval(item[index])
-
-            df = pd.DataFrame(items, columns=['ts', 'open', 'high', 'low', 'close'])
-            df['ts'] = pd.to_datetime(df.ts, unit='s')
-            records = df.to_dict('records')
-            if int(interval)==60:
-                grouping_range = 'H'
-            else:
-                grouping_range = interval + 'T'
-            save_data(symbol, records, grouping_range)
-            sleep(5)
-            since = int(parsed_response['result']['last'])
-
-
-@baker.command
 def resample(symbol, from_grouping, to_grouping):
     data = get_dataframe_from_timerange(db, symbol, from_grouping, 0)
-    if from_grouping=='ticks':
+    if from_grouping == 'ticks':
         resample_and_save_ticks(data, symbol, to_grouping)
     else:
         resample_and_save(data, symbol, to_grouping)
@@ -99,7 +62,7 @@ def plot(symbol, grouping_range, ts_start=0, ts_end=0, skip_orders=False):
     else:
         orders = None
     plotly_candles(df, 'test_plot', orders=orders, indicators=['bollinger_hband', 'bollinger_lband'])
-    #plotly_candles(df, 'test_plot', orders=orders)
+    # plotly_candles(df, 'test_plot', orders=orders)
 
 
 @baker.command
