@@ -37,26 +37,27 @@ def read_ohlc_from_kraken(symbol, interval, ts_start, ts_end=None):
     while (since < ts_end and prev_last != since):
         response = requests.get(url, {'pair': symbol, 'interval': interval, 'since': since})
         print(response.status_code, response.content)
-        parsed_response = json.loads(response.content)
-        to_add_list = next(iter(parsed_response['result'].values()))
-        items = [item[0:5] for item in to_add_list]
-        prev_last = since
+        if response.status_code == 200:
+            parsed_response = json.loads(response.content)
+            to_add_list = next(iter(parsed_response['result'].values()))
+            items = [item[0:5] for item in to_add_list]
+            prev_last = since
 
-        # iterate and fix values to be pure 'floats' by poor mans hack literal eval
-        for item in items:
-            for index in range(1, 4):
-                item[index] = ast.literal_eval(item[index])
+            # iterate and fix values to be pure 'floats' by poor mans hack literal eval
+            for item in items:
+                for index in range(1, 5):
+                    item[index] = ast.literal_eval(item[index])
 
-        df = pd.DataFrame(items, columns=['ts', 'open', 'high', 'low', 'close'])
-        df['ts'] = pd.to_datetime(df.ts, unit='s')
-        records = df.to_dict('records')
-        if int(interval)==60:
-            grouping_range = 'H'
-        else:
-            grouping_range = interval + 'T'
-        save_data(symbol, records, grouping_range)
-        sleep(5)
-        since = int(parsed_response['result']['last'])
+            df = pd.DataFrame(items, columns=['ts', 'open', 'high', 'low', 'close'])
+            df['ts'] = pd.to_datetime(df.ts, unit='s')
+            records = df.to_dict('records')
+            if int(interval)==60:
+                grouping_range = 'H'
+            else:
+                grouping_range = interval + 'T'
+            save_data(symbol, records, grouping_range)
+            sleep(5)
+            since = int(parsed_response['result']['last'])
 
 
 @baker.command
@@ -150,12 +151,12 @@ def backtest_strategy(symbol, grouping_range, ts_start=0, clear_orders=False):
 
     # EMA - n_slow = 32, n_fast= 9, sl_p = 2, tp_p=12 grouping=H
 
-    n_range = [14]  # [9, 12, 14, 18, 20, 22, 24]
-    ndev_range = [2.0]  # [1.7, 1.8, 1.9, 2, 2.1, 2.2]
-    pinbar_min_size_range = [40, 50, 60, 70, 80]
-    pinbar_percentage_range = [10, 15, 20, 25, 30, 35]
-    tp_percentage_range = [6,8,10,12]
-    sl_percentage_range = [1,2,3,4]
+    n_range = [26]
+    ndev_range = [1.9]
+    pinbar_min_size_range = [1.8]
+    pinbar_percentage_range = [19]
+    tp_percentage_range = [8]
+    sl_percentage_range = [3.5]
     for tp_percentage in tp_percentage_range:
         for sl_percentage in sl_percentage_range:
             for n in n_range:

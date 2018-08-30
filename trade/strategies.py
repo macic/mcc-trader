@@ -30,6 +30,15 @@ class BBPinbarStrategy(StrategyParser):
     # n_dev = 2.0
     # pinbar_min = 80
     # pinbar_perc = 35
+    #
+    # ETH EUR
+    # n = [20, 22, 24]
+    # n_dev = [1.7, 1.8, 1.9]
+    # pinbar_min = 1.75
+    # pinbar_perc = 15
+    # tp = 6
+    # sl = 3
+
     indicators_required = ['bollinger_hband', 'bollinger_lband']
 
     def should_open_position(self, **kwargs):
