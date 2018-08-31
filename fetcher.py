@@ -1,3 +1,4 @@
+import logging as log
 import baker
 from time import time, sleep
 import json
@@ -19,9 +20,12 @@ def read_ohlc_from_kraken(symbol, interval, ts_start, ts_end=None):
     prev_last = 0
     while (since < ts_end and prev_last != since):
         response = requests.get(url, {'pair': symbol, 'interval': interval, 'since': since})
-        print(response.status_code, response.content)
         if response.status_code == 200:
-            parsed_response = json.loads(response.content)
+            try:
+                parsed_response = json.loads(response.content)
+            except Exception:
+                print("Invalid format. Content: {0}".format(response.content))
+                continue
             to_add_list = next(iter(parsed_response['result'].values()))
             items = [item[0:5] for item in to_add_list]
             prev_last = since
@@ -41,6 +45,8 @@ def read_ohlc_from_kraken(symbol, interval, ts_start, ts_end=None):
             save_data(symbol, records, grouping_range)
             sleep(5)
             since = int(parsed_response['result']['last'])
+        else:
+            print("Invalid response. Status code: {0}".format(response.status_code))
 
 @baker.command
 def read_ticks(symbol='BTC/USD'):
