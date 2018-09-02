@@ -56,11 +56,6 @@ class BBPinbarStrategy(StrategyParser):
                     return True, type_
         return False, False
 
-    # def should_close_position(self, order, **kwargs):
-    #
-    #     if self.opposite_candle(order.position, check_two_candles=True):
-    #         return True
-
     def should_close_position(self, order, **kwargs):
 
         tp_p = kwargs.get('take_profit_percentage') or 12
@@ -70,3 +65,38 @@ class BBPinbarStrategy(StrategyParser):
         if self.take_profit_percentage_with_trailing_stop_loss(order.open_price, order.position, float(tp_p),
                                                                float(abs_sl)):
             return True
+
+class BBPinbarOppositeBandStrategy(StrategyParser):
+
+    indicators_required = ['bollinger_hband', 'bollinger_lband']
+
+    def should_open_position(self, **kwargs):
+        last = self.df.iloc[-1]
+        previous = self.df.iloc[-2]
+        two_before = self.df.iloc[-3]
+
+        is_pinbar, type_ = self.is_pinbar(last, **kwargs)
+        if is_pinbar:
+            if type_ == 'buy':
+                if last['high'] <= last['bollinger_lband'] or (last['low'] <= last['bollinger_lband'] <= last['high']):
+                    return True, type_
+            elif type_ == 'sell':
+                if last['low'] >= last['bollinger_hband'] or (last['low'] <= last['bollinger_hband'] <= last['high']):
+                    return True, type_
+        return False, False
+
+    def should_close_position(self, order, **kwargs):
+        last = self.df.iloc[-1]
+
+        if last['low'] == 258.26:
+            print("XXXXX")
+            print(last)
+        if order.position == 'sell':
+            if last['low'] <= last['bollinger_lband']:
+                print(last['low'], type(last['low']))
+                print(last['bollinger_lband'], type(last['bollinger_lband']))
+                return True
+        if order.position == 'buy':
+            if last['high'] >= last['bollinger_hband']:
+                return True
+

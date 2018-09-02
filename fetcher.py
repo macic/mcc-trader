@@ -1,17 +1,19 @@
-import logging as log
 import baker
 from time import time, sleep
 import json
 import ast
 import pandas as pd
-from database.services import init_database, save_data
+from helpers.logger import log
+from database.services import save_data
 from datetime import datetime
 from settings.config import kraken_secret, kraken_key, ticker_sleep_time, mongo_uri, mongo_db
 from trade.services import init_connection
 from ccxt.base.errors import ExchangeNotAvailable
 
+
 @baker.command
 def read_ohlc_from_kraken(symbol, interval, ts_start, ts_end=None):
+    log.info("Starting reading OHLC", extra={'symbol': symbol, 'interval': interval})
     import requests
     url = 'https://api.kraken.com/0/public/OHLC'
     if ts_end is None:
@@ -24,7 +26,7 @@ def read_ohlc_from_kraken(symbol, interval, ts_start, ts_end=None):
             try:
                 parsed_response = json.loads(response.content)
             except Exception:
-                print("Invalid format. Content: {0}".format(response.content))
+                log.error("Invalid format. Content: {0}".format(response.content))
                 continue
             to_add_list = next(iter(parsed_response['result'].values()))
             items = [item[0:5] for item in to_add_list]
@@ -46,7 +48,8 @@ def read_ohlc_from_kraken(symbol, interval, ts_start, ts_end=None):
             sleep(5)
             since = int(parsed_response['result']['last'])
         else:
-            print("Invalid response. Status code: {0}".format(response.status_code))
+            log.error("Invalid response", status_code=response.status_code)
+
 
 @baker.command
 def read_ticks(symbol='BTC/USD'):

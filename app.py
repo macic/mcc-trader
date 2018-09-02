@@ -9,7 +9,7 @@ from trade.balance import Balance
 from helpers.common import plotly_candles
 from backtest.services import read_csv
 import ta
-from trade.strategies import EmaStrategy, BBPinbarStrategy
+from trade.strategies import EmaStrategy, BBPinbarStrategy, BBPinbarOppositeBandStrategy
 
 client = init_database(mongo_uri)
 db = client[mongo_db]
@@ -44,8 +44,8 @@ def plot(symbol, grouping_range, ts_start=0, ts_end=0, skip_orders=False):
     df = get_dataframe_from_timerange(db, symbol, grouping_range, ts_start=ts_start, ts_end=ts_end)
     df['ema_fast'] = ta.ema_fast(df['close'], 32)
     df['ema_slow'] = ta.ema_slow(df['close'], 9)
-    df['bollinger_hband'] = ta.bollinger_hband(df['close'], 14)
-    df['bollinger_lband'] = ta.bollinger_lband(df['close'], 14)
+    df['bollinger_hband'] = ta.bollinger_hband(df['close'], 26, 1.9)
+    df['bollinger_lband'] = ta.bollinger_lband(df['close'], 26, 1.9)
     df['ichimoku_a'] = ta.ichimoku_a(df['high'], df['low'])
     df['ichimoku_b'] = ta.ichimoku_b(df['high'], df['low'])
     # df['keltner_low'] = ta.keltner_channel_lband(df['high'], df['low'], df['close'])
@@ -80,7 +80,8 @@ def run_strategy(symbol, grouping_range, ts_start=0, df=None, indicator_args=Non
     if df is None:
         df = get_dataframe_from_timerange(db, symbol, grouping_range, ts_start=ts_start)
     # strategy = EmaStrategy(df, indicators_args=indicator_args)
-    strategy = BBPinbarStrategy(df, indicators_args=indicator_args)
+    #strategy = BBPinbarStrategy(df, indicators_args=indicator_args)
+    strategy = BBPinbarOppositeBandStrategy(df, indicators_args=indicator_args)
 
     order = get_last_order(symbol)
     last_price = df.iloc[-1]['close']
