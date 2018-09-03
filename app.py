@@ -7,6 +7,7 @@ from settings.config import *
 from trade.order import Order
 from trade.balance import Balance
 from helpers.common import plotly_candles
+from helpers.logger import log
 from backtest.services import read_csv
 import ta
 from trade.strategies import EmaStrategy, BBPinbarStrategy, BBPinbarOppositeBandStrategy
@@ -80,7 +81,7 @@ def run_strategy(symbol, grouping_range, ts_start=0, df=None, indicator_args=Non
     if df is None:
         df = get_dataframe_from_timerange(db, symbol, grouping_range, ts_start=ts_start)
     # strategy = EmaStrategy(df, indicators_args=indicator_args)
-    #strategy = BBPinbarStrategy(df, indicators_args=indicator_args)
+    # strategy = BBPinbarStrategy(df, indicators_args=indicator_args)
     strategy = BBPinbarOppositeBandStrategy(df, indicators_args=indicator_args)
 
     order = get_last_order(symbol)
@@ -139,7 +140,8 @@ def backtest_strategy(symbol, grouping_range, ts_start=0, clear_orders=False):
                                 clear_collection('orders')
                             balance.set_balance(1000.0)
                             start_ts = int(time())
-                            print("STARTING", indicator_args, balance.current_balance, params)
+                            log.info("Starting", extra={'args': indicator_args, 'balance': balance.current_balance,
+                                                        'params': params})
 
                             end = len(df.index)
                             for end_pos in range(50, end):
@@ -149,8 +151,8 @@ def backtest_strategy(symbol, grouping_range, ts_start=0, clear_orders=False):
                                              indicator_args=indicator_args,
                                              **params)
                                 del sliced_df
-                            print("FINAL BALANCE", indicator_args, balance.current_balance, params,
-                                  int(time() - start_ts))
+                            log.info("Final BALANCE", extra={'args': indicator_args, 'balance': balance.current_balance,
+                                                             'params': params, 'duration': int(time() - start_ts)})
                             sys.stdout.flush()
 
 

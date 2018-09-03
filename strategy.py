@@ -1,8 +1,8 @@
-import pandas as pd
 import sys
 import ta
 from decimal import Decimal, ROUND_DOWN, ROUND_UP
-from helpers.console_colors import green, yellow, red
+from helpers.logger import log
+
 
 class conditionsIntefrace(object):
 
@@ -16,12 +16,6 @@ class conditionsIntefrace(object):
 class emafastConditions(conditionsIntefrace):
 
     def open_position(self, df, n_fast=12):
-        # poprzednia i jeszcez ja poprzedzajaca swieca zawiera EMA 12
-        # high ostatniej swiecy jest ponizej EMA 12 - SHORT
-
-        # poprzednia i jeszcze ja poprzedzajaca swieca zawiera EMA 12
-        # low ostatniej swiecy jest powyzej EMA 12 - LONG
-        # print("n_fast", n_fast)
         df['ema_fast'] = ta.ema_fast(df['close'], n_fast=int(n_fast))
         last = df.iloc[-1]
         previous = df.iloc[-2]
@@ -29,7 +23,6 @@ class emafastConditions(conditionsIntefrace):
 
         if (previous['high'] >= previous['ema_fast'] >= previous['low']) and (
                 two_before['high'] >= two_before['ema_fast'] >= two_before['low']):
-            # last['open']-last['close']
             if last['high'] < last['ema_fast']:
                 return 'short'
             elif last['low'] > last['ema_fast']:
@@ -60,7 +53,6 @@ class strategyParser(object):
         return self.df
 
     def check_positions(self, strategy_name, **kwargs):
-        #print(yellow("DF"), self.df.iloc[-1]['close'])
         if self.balance <= 0:
             return 0
         conditions = getattr(sys.modules[__name__], strategy_name)
@@ -75,30 +67,25 @@ class strategyParser(object):
                 if self.open_volume == 0.000:
                     return 0
                 self.open_price = Decimal(current_price)
-                self.fees_taken = Decimal(self.open_price * self.open_volume * self.MAKER_FEE).quantize(Decimal('.01'),rounding=ROUND_UP)
+                self.fees_taken = Decimal(self.open_price * self.open_volume * self.MAKER_FEE).quantize(Decimal('.01'),
+                                                                                                        rounding=ROUND_UP)
                 self.open_position = should_open
-                print("position", self.open_position, self.open_volume)
-                print("price", self.open_price)
-                print("fees_taken", self.fees_taken)
-                self.balance = self.balance - self.open_volume*self.open_price - self.fees_taken
-                print("balance after open", self.balance)
+                self.balance = self.balance - self.open_volume * self.open_price - self.fees_taken
+                log.debug("position open", extra={'open_position': self.open_position, 'open_volume': self.open_volume,
+                                                  'price': self.open_price, 'fees_taken': self.fees_taken,
+                                                  'balance_after': self.balance})
                 return should_open
         else:
             should_close = self.should_close_position(conditions, **kwargs)
             if should_close:
-                print ("closing position")
                 earnings = current_price * Decimal(self.open_volume)
                 if self.open_position == 'long':
                     earnings = -earnings
-                print(green("earnings"), earnings)
-                # apply fees
-                self.fees_taken = Decimal(self.fees_taken + current_price * self.open_volume * self.MAKER_FEE).quantize(Decimal('.01'),rounding=ROUND_UP)
+                self.fees_taken = Decimal(self.fees_taken + current_price * self.open_volume * self.MAKER_FEE).quantize(
+                    Decimal('.01'), rounding=ROUND_UP)
                 self.balance = self.balance + earnings - self.fees_taken
-                print("closing price", current_price)
-                print("fees_taken while closing", self.fees_taken)
-                print(red("closing balance"), self.balance)
-                print(" ")
-                #exit()
+                log.debug("position closed", extra={'earnings': earnings, 'closing price': current_price,
+                                                    'closing balance': self.balance, 'fees_taken': self.fees_taken})
                 self.open_position = None
                 self.open_price = None
                 self.open_volume = 0

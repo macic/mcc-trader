@@ -1,7 +1,7 @@
 import pandas as pd
 import ta
 import inspect
-
+from helpers.logger import log
 
 class StrategyParser(object):
     indicators_required: list = []
@@ -102,10 +102,10 @@ class StrategyParser(object):
 
         if top_wick <= (nose_toleration_percentage / 100) * total:
             if body <= (pinbar_percentage / 100) * total:
-                print("PINBAR BUY", body, total, top_wick)
+                log.debug("Found buy pinbar", extra={'body': body, 'total': total, 'top_wick':top_wick})
                 return True, 'buy'
         elif bottom_wick <= (nose_toleration_percentage / 100) * total:
             if body <= (pinbar_percentage / 100) * total:
-                print("PINBAR SELL", body, total, bottom_wick)
+                log.debug("Found buy sell", extra={'body': body, 'total': total, 'top_wick': top_wick})
                 return True, 'sell'
         return False, False

@@ -2,8 +2,8 @@ import datetime
 import pandas as pd
 from pymongo import MongoClient, operations, ASCENDING
 from pymongo.errors import BulkWriteError
-from helpers.console_colors import red, dump, yellow, green
 from helpers.common import convert_docs_to_df, resample_df, add_ts_based_on_index, convert_orders_to_df, resample_ohlc
+from helpers.logger import log
 from settings.config import mongo_db, mongo_uri
 
 
@@ -27,7 +27,8 @@ def get_dataframe_from_timerange(db_instance, symbol, grouping_range, ts_start, 
         find_query['$lt'] = iso_end
     else:
         iso_end = ''  # done only for printing/logging below
-    print(yellow("Fetching data for %s in timeframe %s - %s" % (collection_name, iso_start, iso_end)))
+    log.debug("Fetching data for timeframe", extra={'symbol': symbol, 'grouping_range': grouping_range,
+                                                    'ts_start': ts_start, 'ts_end':ts_end})
     docs = collection.find({"ts": find_query}).sort([("ts", ASCENDING)])
     return convert_docs_to_df(docs)
 
@@ -44,9 +45,8 @@ def save_data(symbol, records, grouping_range='ticks'):
     try:
         collection.bulk_write(ops)
     except BulkWriteError as bwe:
-        print(red("Errors when writing records:"))
-        dump(bwe.details)
-    print(green("Saved %i records to %s. Last from %s." % (len(records), collection_name, records[-1]['ts'])))
+        log.error("Errors when writing records:", extra={'details': bwe.details})
+    log.info("Saved records.", extra={'last_ts':records[-1]['ts'], 'symbol': symbol, 'grouping_range': grouping_range})
 
 
 def resample_and_save_ticks(ticks, symbol, grouping_range, price_field='last'):
@@ -85,20 +85,18 @@ def get_orders(symbol, ts_start, ts_end=None) -> pd.DataFrame:
         find_query['$lt'] = iso_end
     else:
         iso_end = ''  # done only for printing/logging below
-    print(yellow("Fetching orders for %s in timeframe %s - %s" % (symbol, iso_start, iso_end)))
+    log.debug("Fetching orders.", extra={'symbol': symbol, 'iso_start': iso_start, 'iso_end': iso_end})
     docs = db_instance['orders'].find({'symbol': symbol, "open_ts": find_query}).sort([("open_ts", ASCENDING)])
     return convert_orders_to_df(docs)
 
 
 def save_order(data):
     db_instance['orders'].replace_one({'id': data['id']}, replacement=data, upsert=True)
-    print(green("Saved order"), data)
 
 
 def save_balance(data):
     data['currency'] = 'USD'
     db_instance['balance'].replace_one({'currency': 'USD'}, replacement=data, upsert=True)
-    print(green("Saved balance"), data)
 
 
 def clear_collection(collection_name):

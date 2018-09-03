@@ -88,13 +88,8 @@ class BBPinbarOppositeBandStrategy(StrategyParser):
     def should_close_position(self, order, **kwargs):
         last = self.df.iloc[-1]
 
-        if last['low'] == 258.26:
-            print("XXXXX")
-            print(last)
         if order.position == 'sell':
             if last['low'] <= last['bollinger_lband']:
-                print(last['low'], type(last['low']))
-                print(last['bollinger_lband'], type(last['bollinger_lband']))
                 return True
         if order.position == 'buy':
             if last['high'] >= last['bollinger_hband']:
