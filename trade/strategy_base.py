@@ -106,6 +106,6 @@ class StrategyParser(object):
                 return True, 'buy'
         elif bottom_wick <= (nose_toleration_percentage / 100) * total:
             if body <= (pinbar_percentage / 100) * total:
-                log.debug("Found buy sell", extra={'body': body, 'total': total, 'top_wick': top_wick})
+                log.debug("Found sell pinbar", extra={'body': body, 'total': total, 'top_wick': top_wick})
                 return True, 'sell'
         return False, False
